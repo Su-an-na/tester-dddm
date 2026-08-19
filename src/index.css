@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-headline: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --market-green: #089981;
+    --market-red: #F23645;
+  }
+
+  body {
+    font-family: var(--font-headline);
+    background-color: #f7f9ff;
+    color: #181c21;
+    min-height: 100vh;
+  }
+}
+
+.font-headline {
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-mono-num {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #2962FF 0%, #7B1FA2 100%);
+}
+
+.market-up {
+  color: #089981;
+}
+
+.market-down {
+  color: #F23645;
+}
+
+.bg-market-up-subtle {
+  background-color: rgba(8, 153, 129, 0.08);
+}
+
+.bg-market-down-subtle {
+  background-color: rgba(242, 54, 69, 0.08);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes tick-up {
+  0% { background-color: rgba(8, 153, 129, 0.25); }
+  100% { background-color: transparent; }
+}
+
+@keyframes tick-down {
+  0% { background-color: rgba(242, 54, 69, 0.25); }
+  100% { background-color: transparent; }
+}
+
+.tick-flash-up {
+  animation: tick-up 1.2s ease-out;
+}
+
+.tick-flash-down {
+  animation: tick-down 1.2s ease-out;
+}
+
