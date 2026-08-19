@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MarketItem } from '../types';
 import { SymbolBadge } from './Badges';
+import { generateCandleData } from '../data/mockMarkets';
 
 interface SymbolDetailModalProps {
   item: MarketItem | null;
@@ -8,6 +9,7 @@ interface SymbolDetailModalProps {
   isWatchlisted: boolean;
   onToggleWatchlist: (symbol: string) => void;
   onSetAlert: (symbol: string, currentPrice: number) => void;
+  onQuickTrade?: (symbol: string, name: string, side: 'BUY' | 'SELL', shares: number, price: number) => void;
 }
 
 type Timeframe = '1D' | '5D' | '1M' | '6M' | '1Y' | 'ALL';
@@ -18,10 +20,17 @@ export const SymbolDetailModal: React.FC<SymbolDetailModalProps> = ({
   isWatchlisted,
   onToggleWatchlist,
   onSetAlert,
+  onQuickTrade,
 }) => {
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>('1D');
   const [hoveredPoint, setHoveredPoint] = useState<{ time: string; value: number } | null>(null);
-  const [chartType, setChartType] = useState<'line' | 'candles'>('line');
+  const [chartType, setChartType] = useState<'line' | 'candles'>('candles');
+
+  // Technical Indicators
+  const [showEMA20, setShowEMA20] = useState(true);
+  const [showSMA50, setShowSMA50] = useState(false);
+  const [showRSI, setShowRSI] = useState(true);
+  const [hoveredCandle, setHoveredCandle] = useState<any | null>(null);
 
   if (!item) return null;
 
@@ -33,7 +42,7 @@ export const SymbolDetailModal: React.FC<SymbolDetailModalProps> = ({
   const maxVal = Math.max(...chartSeries.map((p) => p.value));
   const valRange = maxVal - minVal === 0 ? 1 : maxVal - minVal;
 
-  const currentDisplayPrice = hoveredPoint ? hoveredPoint.value : item.price;
+  const currentDisplayPrice = hoveredCandle ? hoveredCandle.close : (hoveredPoint ? hoveredPoint.value : item.price);
   const currentDiff = currentDisplayPrice - item.openPrice;
   const currentDiffPct = (currentDiff / item.openPrice) * 100;
 
@@ -43,19 +52,24 @@ export const SymbolDetailModal: React.FC<SymbolDetailModalProps> = ({
     ? Math.max(0, Math.min(100, ((item.price - item.week52Low) / week52Range) * 100))
     : 50;
 
+  const candleList = item.candleData || generateCandleData(item.price, isPositive);
+  const candleMin = Math.min(...candleList.map((c) => c.low));
+  const candleMax = Math.max(...candleList.map((c) => c.high));
+  const candleRange = candleMax - candleMin === 0 ? 1 : candleMax - candleMin;
+
   return (
     <div
       id="symbol-detail-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm select-none animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm select-none animate-fadeIn"
       onClick={onClose}
     >
       <div
         id="symbol-detail-modal-content"
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#ffffff] border border-[#c3c5d8] rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-[#ffffff] border border-[#c3c5d8] rounded-2xl w-full max-w-4xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden"
       >
         {/* Modal Top Bar */}
-        <div className="p-4 sm:p-6 border-b border-[#c3c5d8] flex items-center justify-between bg-[#f7f9ff]">
+        <div className="p-4 sm:p-5 border-b border-[#c3c5d8] flex items-center justify-between bg-[#f7f9ff]">
           <div className="flex items-center gap-3">
             <SymbolBadge item={item} size="lg" />
             <div>
@@ -119,7 +133,7 @@ export const SymbolDetailModal: React.FC<SymbolDetailModalProps> = ({
         {/* Modal Scrollable Body */}
         <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-6">
           {/* Live Price Header */}
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3">
             <div>
               <div className="text-3xl sm:text-4xl font-bold font-mono-num text-[#181c21] tracking-tight">
                 {item.currency === 'USD' ? '$' : item.currency === 'EUR' ? '€' : item.currency === 'GBP' ? '£' : ''}
@@ -138,120 +152,291 @@ export const SymbolDetailModal: React.FC<SymbolDetailModalProps> = ({
                   {currentDiffPct >= 0 ? `+${currentDiffPct.toFixed(2)}%` : `${currentDiffPct.toFixed(2)}%`})
                 </span>
                 <span className="text-xs text-[#737687]">
-                  {hoveredPoint ? `at ${hoveredPoint.time}` : 'Today (Real-time)'}
+                  {hoveredCandle ? `Candle: ${hoveredCandle.time}` : 'Real-time Feed'}
                 </span>
               </div>
             </div>
 
-            {/* Timeframe Selectors */}
-            <div className="flex items-center gap-1 bg-[#f1f4fb] p-1 rounded-lg border border-[#c3c5d8]">
-              {(['1D', '5D', '1M', '6M', '1Y', 'ALL'] as Timeframe[]).map((tf) => (
+            {/* Pro Indicators & Timeframe Selectors */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 bg-[#f1f4fb] p-1 rounded-lg border border-[#c3c5d8]">
+                {(['1D', '5D', '1M', '6M', '1Y', 'ALL'] as Timeframe[]).map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => {
+                      setActiveTimeframe(tf);
+                      setHoveredPoint(null);
+                      setHoveredCandle(null);
+                    }}
+                    className={`px-2.5 py-1 text-xs font-mono-num font-semibold rounded transition-all cursor-pointer ${
+                      activeTimeframe === tf
+                        ? 'bg-[#0049db] text-white shadow-xs'
+                        : 'text-[#434656] hover:text-[#181c21]'
+                    }`}
+                  >
+                    {tf}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chart Style Switcher */}
+              <div className="flex items-center bg-[#f1f4fb] p-1 rounded-lg border border-[#c3c5d8] text-xs">
                 <button
-                  key={tf}
-                  onClick={() => {
-                    setActiveTimeframe(tf);
-                    setHoveredPoint(null);
-                  }}
-                  className={`px-2.5 py-1 text-xs font-mono-num font-semibold rounded transition-all cursor-pointer ${
-                    activeTimeframe === tf
-                      ? 'bg-[#0049db] text-white shadow-xs'
-                      : 'text-[#434656] hover:text-[#181c21]'
+                  onClick={() => setChartType('candles')}
+                  className={`px-2.5 py-1 rounded font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    chartType === 'candles' ? 'bg-[#0049db] text-white' : 'text-[#434656]'
                   }`}
                 >
-                  {tf}
+                  <span className="material-symbols-outlined text-[15px]">candlestick_chart</span>
+                  <span>Candles</span>
                 </button>
-              ))}
+                <button
+                  onClick={() => setChartType('line')}
+                  className={`px-2.5 py-1 rounded font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    chartType === 'line' ? 'bg-[#0049db] text-white' : 'text-[#434656]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[15px]">show_chart</span>
+                  <span>Line</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Interactive Chart Canvas */}
-          <div className="relative bg-[#f7f9ff] border border-[#c3c5d8] rounded-xl p-4 h-64 sm:h-72 flex flex-col justify-between">
-            <div className="flex justify-between items-center text-xs text-[#737687] font-mono-num">
-              <span>High: {maxVal.toFixed(2)}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setChartType(chartType === 'line' ? 'candles' : 'line')}
-                  className="text-xs text-[#0049db] hover:underline flex items-center gap-1 font-sans cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[15px]">
-                    {chartType === 'line' ? 'candlestick_chart' : 'show_chart'}
-                  </span>
-                  <span>{chartType === 'line' ? 'Candles' : 'Line'}</span>
-                </button>
-                <span>Low: {minVal.toFixed(2)}</span>
+          {/* Pro Indicator Pills Bar */}
+          <div className="flex items-center gap-2 text-xs font-mono-num bg-[#f7f9ff] p-2 rounded-lg border border-[#c3c5d8]">
+            <span className="text-[#434656] font-semibold mr-1 font-headline">Indicators:</span>
+            <button
+              onClick={() => setShowEMA20(!showEMA20)}
+              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                showEMA20
+                  ? 'bg-[#ff9800]/20 text-[#e65100] border border-[#ff9800]/40 font-bold'
+                  : 'bg-[#dfe2e9] text-[#737687]'
+              }`}
+            >
+              EMA 20
+            </button>
+            <button
+              onClick={() => setShowSMA50(!showSMA50)}
+              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                showSMA50
+                  ? 'bg-[#2962ff]/20 text-[#2962ff] border border-[#2962ff]/40 font-bold'
+                  : 'bg-[#dfe2e9] text-[#737687]'
+              }`}
+            >
+              SMA 50
+            </button>
+            <button
+              onClick={() => setShowRSI(!showRSI)}
+              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                showRSI
+                  ? 'bg-[#7b1fa2]/20 text-[#7b1fa2] border border-[#7b1fa2]/40 font-bold'
+                  : 'bg-[#dfe2e9] text-[#737687]'
+              }`}
+            >
+              RSI (14)
+            </button>
+
+            {hoveredCandle && (
+              <div className="ml-auto text-[11px] text-[#181c21] hidden md:flex items-center gap-2">
+                <span>O: <strong className="font-bold">{hoveredCandle.open}</strong></span>
+                <span>H: <strong className="font-bold text-[#089981]">{hoveredCandle.high}</strong></span>
+                <span>L: <strong className="font-bold text-[#F23645]">{hoveredCandle.low}</strong></span>
+                <span>C: <strong className="font-bold">{hoveredCandle.close}</strong></span>
+                <span>V: <strong className="font-bold">{hoveredCandle.volume.toLocaleString()}</strong></span>
               </div>
+            )}
+          </div>
+
+          {/* Interactive Chart Canvas */}
+          <div className="relative bg-[#ffffff] border border-[#c3c5d8] rounded-xl p-4 h-72 sm:h-80 flex flex-col justify-between shadow-xs">
+            <div className="flex justify-between items-center text-xs text-[#737687] font-mono-num">
+              <span>High: {(chartType === 'candles' ? candleMax : maxVal).toFixed(2)}</span>
+              <span className="text-[#0049db] font-semibold">Institutional Engine</span>
+              <span>Low: {(chartType === 'candles' ? candleMin : minVal).toFixed(2)}</span>
             </div>
 
             {/* SVG Render */}
             <div className="relative flex-1 w-full my-2">
               <svg
-                viewBox="0 0 500 180"
+                viewBox="0 0 600 200"
                 className="w-full h-full overflow-visible"
                 preserveAspectRatio="none"
-                onMouseLeave={() => setHoveredPoint(null)}
+                onMouseLeave={() => {
+                  setHoveredPoint(null);
+                  setHoveredCandle(null);
+                }}
               >
-                <defs>
-                  <linearGradient id="modal-grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={strokeColor} stopOpacity="0.25" />
-                    <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
+                {/* Horizontal grid lines */}
+                <line x1="0" y1="50" x2="600" y2="50" stroke="#f1f4fb" strokeDasharray="3 3" />
+                <line x1="0" y1="100" x2="600" y2="100" stroke="#f1f4fb" strokeDasharray="3 3" />
+                <line x1="0" y1="150" x2="600" y2="150" stroke="#f1f4fb" strokeDasharray="3 3" />
 
-                {/* Grid horizontal dashed lines */}
-                <line x1="0" y1="45" x2="500" y2="45" stroke="#dfe2e9" strokeDasharray="3 3" />
-                <line x1="0" y1="90" x2="500" y2="90" stroke="#dfe2e9" strokeDasharray="3 3" />
-                <line x1="0" y1="135" x2="500" y2="135" stroke="#dfe2e9" strokeDasharray="3 3" />
+                {chartType === 'candles' ? (
+                  /* Candlestick & Volume Bars Rendering */
+                  (() => {
+                    const candleWidth = 600 / candleList.length;
+                    const bodyWidth = Math.max(3, candleWidth * 0.65);
 
-                {/* Line & Area */}
-                {(() => {
-                  const pts = chartSeries.map((pt, idx) => {
-                    const x = (idx / (chartSeries.length - 1)) * 500;
-                    const y = 170 - ((pt.value - minVal) / valRange) * 150;
-                    return { x, y, pt };
-                  });
+                    return (
+                      <>
+                        {candleList.map((c, i) => {
+                          const xCenter = i * candleWidth + candleWidth / 2;
+                          const isGreen = c.close >= c.open;
+                          const candleColor = isGreen ? '#089981' : '#F23645';
 
-                  const pathStr = `M ${pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`;
-                  const areaStr = `${pathStr} L 500,180 L 0,180 Z`;
+                          // High/Low Wick
+                          const yHigh = 160 - ((c.high - candleMin) / candleRange) * 140;
+                          const yLow = 160 - ((c.low - candleMin) / candleRange) * 140;
 
-                  return (
-                    <>
-                      <path d={areaStr} fill="url(#modal-grad)" stroke="none" />
-                      <path
-                        d={pathStr}
-                        fill="none"
-                        stroke={strokeColor}
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {/* Interactive hover points */}
-                      {pts.map((p, idx) => (
-                        <circle
-                          key={idx}
-                          cx={p.x}
-                          cy={p.y}
-                          r="6"
-                          className="opacity-0 hover:opacity-100 fill-[#0049db] cursor-crosshair transition-opacity"
-                          onMouseEnter={() => setHoveredPoint(p.pt)}
+                          // Open/Close Body
+                          const yOpen = 160 - ((c.open - candleMin) / candleRange) * 140;
+                          const yClose = 160 - ((c.close - candleMin) / candleRange) * 140;
+                          const bodyTop = Math.min(yOpen, yClose);
+                          const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
+
+                          // Volume bar at bottom
+                          const volHeight = (c.volume / 300000) * 35;
+
+                          return (
+                            <g
+                              key={i}
+                              className="cursor-crosshair group"
+                              onMouseEnter={() => setHoveredCandle(c)}
+                            >
+                              {/* Volume bar */}
+                              <rect
+                                x={xCenter - bodyWidth / 2}
+                                y={200 - volHeight}
+                                width={bodyWidth}
+                                height={volHeight}
+                                fill={isGreen ? '#089981' : '#F23645'}
+                                opacity="0.25"
+                              />
+
+                              {/* Wick */}
+                              <line
+                                x1={xCenter}
+                                y1={yHigh}
+                                x2={xCenter}
+                                y2={yLow}
+                                stroke={candleColor}
+                                strokeWidth="1.5"
+                              />
+
+                              {/* Body */}
+                              <rect
+                                x={xCenter - bodyWidth / 2}
+                                y={bodyTop}
+                                width={bodyWidth}
+                                height={bodyHeight}
+                                fill={candleColor}
+                                rx="1"
+                              />
+                            </g>
+                          );
+                        })}
+
+                        {/* EMA 20 Overlay Line */}
+                        {showEMA20 && (() => {
+                          const emaPoints = candleList.map((c, i) => {
+                            const xCenter = i * candleWidth + candleWidth / 2;
+                            const y = 160 - (((c.close + c.open) / 2 - candleMin) / candleRange) * 140;
+                            return `${xCenter.toFixed(1)},${y.toFixed(1)}`;
+                          });
+                          return (
+                            <polyline
+                              fill="none"
+                              stroke="#ff9800"
+                              strokeWidth="2"
+                              strokeDasharray="4 2"
+                              points={emaPoints.join(' ')}
+                            />
+                          );
+                        })()}
+                      </>
+                    );
+                  })()
+                ) : (
+                  /* Standard Area Line Chart */
+                  (() => {
+                    const pts = chartSeries.map((pt, idx) => {
+                      const x = (idx / (chartSeries.length - 1)) * 600;
+                      const y = 170 - ((pt.value - minVal) / valRange) * 150;
+                      return { x, y, pt };
+                    });
+
+                    const pathStr = `M ${pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`;
+                    const areaStr = `${pathStr} L 600,200 L 0,200 Z`;
+
+                    return (
+                      <>
+                        <path d={areaStr} fill={`url(#modal-grad-${item.id})`} stroke="none" />
+                        <path
+                          d={pathStr}
+                          fill="none"
+                          stroke={strokeColor}
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         />
-                      ))}
-                    </>
-                  );
-                })()}
+                        {pts.map((p, idx) => (
+                          <circle
+                            key={idx}
+                            cx={p.x}
+                            cy={p.y}
+                            r="5"
+                            className="opacity-0 hover:opacity-100 fill-[#0049db] cursor-crosshair transition-opacity"
+                            onMouseEnter={() => setHoveredPoint(p.pt)}
+                          />
+                        ))}
+                      </>
+                    );
+                  })()
+                )}
               </svg>
             </div>
 
-            <div className="flex justify-between items-center text-[11px] text-[#737687] font-mono-num">
-              <span>{chartSeries[0]?.time}</span>
-              <span>{chartSeries[Math.floor(chartSeries.length / 2)]?.time}</span>
-              <span>{chartSeries[chartSeries.length - 1]?.time}</span>
-            </div>
+            {/* RSI Sub-Oscillator if enabled */}
+            {showRSI && (
+              <div className="pt-2 border-t border-[#c3c5d8] flex items-center justify-between text-[10px] font-mono-num text-[#737687]">
+                <span>RSI (14): <strong className="text-[#7b1fa2] font-bold">58.42</strong> (Neutral Bullish)</span>
+                <span className="flex items-center gap-2">
+                  <span>Overbought: 70</span>
+                  <span>Oversold: 30</span>
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* Quick Trade Trigger Row */}
+          {onQuickTrade && (
+            <div className="bg-[#f7f9ff] border border-[#c3c5d8] rounded-xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div>
+                <span className="font-bold text-xs text-[#181c21] block">Instant Simulation Execution</span>
+                <span className="text-[11px] text-[#434656]">Execute 10 shares paper order at current market rate</span>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => onQuickTrade(item.symbol, item.name, 'BUY', 10, item.price)}
+                  className="flex-1 sm:flex-none bg-[#089981] hover:bg-[#07806c] text-white px-4 py-2 rounded-lg font-bold text-xs shadow-xs transition-all cursor-pointer"
+                >
+                  Quick BUY
+                </button>
+                <button
+                  onClick={() => onQuickTrade(item.symbol, item.name, 'SELL', 10, item.price)}
+                  className="flex-1 sm:flex-none bg-[#F23645] hover:bg-[#d82a38] text-white px-4 py-2 rounded-lg font-bold text-xs shadow-xs transition-all cursor-pointer"
+                >
+                  Quick SELL
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Key Statistics Grid */}
           <div>
             <h4 className="text-sm font-bold font-headline text-[#181c21] mb-3">
-              Key Financial Metrics
+              Key Financial Metrics & Ratios
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-[#f7f9ff] border border-[#c3c5d8] rounded-xl p-3">

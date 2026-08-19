@@ -14,6 +14,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const tabs: { id: MainView; label: string; icon: string; badge?: number }[] = [
     { id: 'markets', label: 'Markets', icon: 'analytics' },
+    { id: 'heatmap', label: 'Heatmap', icon: 'grid_view' },
     { id: 'news', label: 'News', icon: 'article', badge: unreadNewsCount },
     { id: 'ideas', label: 'Ideas', icon: 'lightbulb' },
     { id: 'profile', label: 'Profile', icon: 'person' },

@@ -1,12 +1,25 @@
 export type TabCategory = 'indices' | 'futures' | 'forex' | 'bonds' | 'crypto';
 
-export type MainView = 'markets' | 'news' | 'ideas' | 'profile';
+export type MainView = 'markets' | 'news' | 'ideas' | 'profile' | 'heatmap' | 'calendar';
 
 export type DisplayMode = 'table' | 'cards';
+
+export type ThemeMode = 'light' | 'dark';
+
+export type RightToolbarTool = 'watchlist' | 'alerts' | 'calendar' | 'paper-trade' | 'orderbook' | null;
 
 export interface SparklinePoint {
   time: string;
   value: number;
+}
+
+export interface CandlePoint {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 }
 
 export interface MarketItem {
@@ -44,6 +57,7 @@ export interface MarketItem {
     '1Y': SparklinePoint[];
     'ALL': SparklinePoint[];
   };
+  candleData?: CandlePoint[];
   sentiment: 'Strong Buy' | 'Buy' | 'Neutral' | 'Sell' | 'Strong Sell';
   description: string;
   sector?: string;
@@ -106,3 +120,46 @@ export interface PriceAlert {
   isActive: boolean;
   createdAt: string;
 }
+
+export interface OrderBookLevel {
+  price: number;
+  size: number;
+  total: number;
+  percent: number;
+}
+
+export interface PaperPosition {
+  id: string;
+  symbol: string;
+  name: string;
+  side: 'BUY' | 'SELL';
+  shares: number;
+  entryPrice: number;
+  currentPrice: number;
+  pnl: number;
+  pnlPercent: number;
+  timestamp: string;
+}
+
+export interface EconomicCalendarEvent {
+  id: string;
+  time: string;
+  country: string;
+  flag: string;
+  event: string;
+  impact: 'HIGH' | 'MED' | 'LOW';
+  actual?: string;
+  forecast: string;
+  previous: string;
+}
+
+export interface HeatmapItem {
+  symbol: string;
+  name: string;
+  sector: string;
+  price: number;
+  changePercent: number;
+  marketCapVal: number;
+  marketCapFormatted: string;
+}
+

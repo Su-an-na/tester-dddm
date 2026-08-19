@@ -1,4 +1,37 @@
-import { MarketItem, MarketNewsItem, MarketSummaryStats, TopMover, TradeIdea } from '../types';
+import { EconomicCalendarEvent, HeatmapItem, MarketItem, MarketNewsItem, MarketSummaryStats, TopMover, TradeIdea } from '../types';
+
+export function generateCandleData(basePrice: number, isPositive: boolean) {
+  const count = 30;
+  const candles = [];
+  let prevClose = basePrice * (isPositive ? 0.96 : 1.04);
+
+  for (let i = 0; i < count; i++) {
+    const change = (Math.random() - (isPositive ? 0.44 : 0.56)) * (basePrice * 0.012);
+    const open = prevClose;
+    const close = Math.max(0.1, open + change);
+    const high = Math.max(open, close) + Math.random() * (basePrice * 0.008);
+    const low = Math.min(open, close) - Math.random() * (basePrice * 0.008);
+    const volume = Math.floor(50000 + Math.random() * 250000);
+    const day = (i + 1).toString().padStart(2, '0');
+    
+    candles.push({
+      time: `08/${day}`,
+      open: parseFloat(open.toFixed(2)),
+      high: parseFloat(high.toFixed(2)),
+      low: parseFloat(low.toFixed(2)),
+      close: parseFloat(close.toFixed(2)),
+      volume,
+    });
+    prevClose = close;
+  }
+
+  // Ensure last candle closes exactly at current basePrice
+  candles[candles.length - 1].close = basePrice;
+  candles[candles.length - 1].high = Math.max(candles[candles.length - 1].high, basePrice);
+  candles[candles.length - 1].low = Math.min(candles[candles.length - 1].low, basePrice);
+
+  return candles;
+}
 
 function generateChartData(basePrice: number, isPositive: boolean) {
   const points = 24;
@@ -1075,3 +1108,107 @@ export const TRADE_IDEAS: TradeIdea[] = [
     tags: ['Forex', 'EURUSD', 'Macro'],
   },
 ];
+
+export const GLOBAL_TICKER_TAPE = [
+  { symbol: 'S&P 500', price: 5123.69, changePercent: 0.82, isPositive: true },
+  { symbol: 'NASDAQ', price: 16274.94, changePercent: 1.15, isPositive: true },
+  { symbol: 'DOW JONES', price: 38989.84, changePercent: 0.34, isPositive: true },
+  { symbol: 'BTC/USD', price: 67850.00, changePercent: 3.27, isPositive: true },
+  { symbol: 'ETH/USD', price: 3540.00, changePercent: 3.51, isPositive: true },
+  { symbol: 'EUR/USD', price: 1.0872, changePercent: 0.31, isPositive: true },
+  { symbol: 'GOLD', price: 2342.80, changePercent: 0.80, isPositive: true },
+  { symbol: 'CRUDE OIL', price: 81.25, changePercent: 1.78, isPositive: true },
+  { symbol: 'US 10Y', price: 4.225, changePercent: -0.82, isPositive: false },
+  { symbol: 'NVDA', price: 822.79, changePercent: 4.00, isPositive: true },
+  { symbol: 'AAPL', price: 180.75, changePercent: 0.96, isPositive: true },
+  { symbol: 'TSLA', price: 175.34, changePercent: -2.72, isPositive: false },
+];
+
+export const ECONOMIC_CALENDAR_DATA: EconomicCalendarEvent[] = [
+  {
+    id: 'eco-1',
+    time: '08:30 EST',
+    country: 'US',
+    flag: '🇺🇸',
+    event: 'Core CPI Inflation Rate (MoM)',
+    impact: 'HIGH',
+    actual: '0.3%',
+    forecast: '0.3%',
+    previous: '0.4%',
+  },
+  {
+    id: 'eco-2',
+    time: '10:00 EST',
+    country: 'US',
+    flag: '🇺🇸',
+    event: 'ISM Non-Manufacturing PMI',
+    impact: 'HIGH',
+    actual: '52.6',
+    forecast: '52.0',
+    previous: '53.4',
+  },
+  {
+    id: 'eco-3',
+    time: '14:00 EST',
+    country: 'US',
+    flag: '🇺🇸',
+    event: 'FOMC Interest Rate Decision',
+    impact: 'HIGH',
+    forecast: '5.25%-5.50%',
+    previous: '5.50%',
+  },
+  {
+    id: 'eco-4',
+    time: '07:00 GMT',
+    country: 'GB',
+    flag: '🇬🇧',
+    event: 'UK GDP Growth Rate (YoY)',
+    impact: 'MED',
+    actual: '0.2%',
+    forecast: '0.1%',
+    previous: '-0.2%',
+  },
+  {
+    id: 'eco-5',
+    time: '09:00 CET',
+    country: 'EU',
+    flag: '🇪🇺',
+    event: 'ECB Monetary Policy Statement',
+    impact: 'HIGH',
+    forecast: '3.75%',
+    previous: '4.00%',
+  },
+  {
+    id: 'eco-6',
+    time: '23:50 JST',
+    country: 'JP',
+    flag: '🇯🇵',
+    event: 'BoJ Core CPI (YoY)',
+    impact: 'MED',
+    actual: '2.5%',
+    forecast: '2.4%',
+    previous: '2.6%',
+  },
+];
+
+export const HEATMAP_DATA: HeatmapItem[] = [
+  // Mega-cap Tech & Semis
+  { symbol: 'NVDA', name: 'NVIDIA Corp', sector: 'Semiconductors', price: 822.79, changePercent: 4.00, marketCapVal: 2050, marketCapFormatted: '$2.05T' },
+  { symbol: 'AAPL', name: 'Apple Inc', sector: 'Technology Hardware', price: 180.75, changePercent: 0.96, marketCapVal: 2790, marketCapFormatted: '$2.79T' },
+  { symbol: 'MSFT', name: 'Microsoft Corp', sector: 'Software - Infrastructure', price: 420.55, changePercent: 1.25, marketCapVal: 3120, marketCapFormatted: '$3.12T' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc', sector: 'Internet Content & AI', price: 173.80, changePercent: 2.10, marketCapVal: 2160, marketCapFormatted: '$2.16T' },
+  { symbol: 'AMZN', name: 'Amazon.com Inc', sector: 'E-Commerce & Cloud', price: 178.22, changePercent: 1.45, marketCapVal: 1850, marketCapFormatted: '$1.85T' },
+  { symbol: 'META', name: 'Meta Platforms', sector: 'Internet Content', price: 495.10, changePercent: 2.80, marketCapVal: 1260, marketCapFormatted: '$1.26T' },
+  { symbol: 'AVGO', name: 'Broadcom Inc', sector: 'Semiconductors', price: 1380.40, changePercent: 3.15, marketCapVal: 642, marketCapFormatted: '$642B' },
+  { symbol: 'AMD', name: 'Advanced Micro Devices', sector: 'Semiconductors', price: 174.20, changePercent: 2.30, marketCapVal: 281, marketCapFormatted: '$281B' },
+  { symbol: 'TSLA', name: 'Tesla Inc', sector: 'Automotive & Clean Energy', price: 175.34, changePercent: -2.72, marketCapVal: 558, marketCapFormatted: '$558B' },
+  // Financials & Healthcare
+  { symbol: 'BRK.B', name: 'Berkshire Hathaway', sector: 'Financial Conglomerate', price: 408.20, changePercent: 0.42, marketCapVal: 885, marketCapFormatted: '$885B' },
+  { symbol: 'JPM', name: 'JPMorgan Chase', sector: 'Financial Services', price: 198.50, changePercent: 0.88, marketCapVal: 570, marketCapFormatted: '$570B' },
+  { symbol: 'LLY', name: 'Eli Lilly & Co', sector: 'Healthcare & Pharma', price: 772.30, changePercent: 1.65, marketCapVal: 733, marketCapFormatted: '$733B' },
+  { symbol: 'UNH', name: 'UnitedHealth Group', sector: 'Healthcare Plans', price: 492.10, changePercent: -0.95, marketCapVal: 452, marketCapFormatted: '$452B' },
+  { symbol: 'XOM', name: 'Exxon Mobil Corp', sector: 'Energy & Petrochemicals', price: 114.80, changePercent: 1.52, marketCapVal: 456, marketCapFormatted: '$456B' },
+  { symbol: 'WMT', name: 'Walmart Inc', sector: 'Consumer Defensive', price: 60.25, changePercent: 0.20, marketCapVal: 485, marketCapFormatted: '$485B' },
+  { symbol: 'V', name: 'Visa Inc', sector: 'Payment Processing', price: 279.40, changePercent: 0.65, marketCapVal: 560, marketCapFormatted: '$560B' },
+];
+

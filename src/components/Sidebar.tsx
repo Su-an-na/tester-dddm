@@ -17,6 +17,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems: { id: MainView; label: string; icon: string; badge?: number }[] = [
     { id: 'markets', label: 'Markets', icon: 'analytics' },
+    { id: 'heatmap', label: 'Heatmap', icon: 'grid_view' },
+    { id: 'calendar', label: 'Calendar', icon: 'calendar_month' },
     { id: 'news', label: 'News', icon: 'article', badge: unreadNewsCount },
     { id: 'ideas', label: 'Ideas', icon: 'lightbulb' },
     { id: 'profile', label: 'Profile', icon: 'person' },
